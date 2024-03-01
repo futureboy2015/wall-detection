@@ -7,8 +7,22 @@
 </head>
 <body>
     <h2>画像をクリックしてください</h2>
-    <canvas id="canvas" width="640" height="480" style="border:1px solid #000;"></canvas>
-    <script src="https://docs.opencv.org/4.5.5/opencv.js"></script>
-    <script src="script.js"></script>
+    <h1>Wall Painting</h1>
+    <canvas id="canvas"></canvas>
+    <canvas id="canvasGray"></canvas>
+    <canvas id="canvasHSV"></canvas>
+    <canvas id="canvasS"></canvas>
+    <canvas id="canvasBlurredGray"></canvas>
+    <canvas id="canvasBlurredS"></canvas>
+    <canvas id="canvasEdgesGray"></canvas>
+    <canvas id="canvasEdgesS"></canvas>
+    <canvas id="canvasMergedEdges"></canvas>
+    <canvas id="canvasDilatedEdges"></canvas>
+    <canvas id="canvasFlooded"></canvas>
+    <canvas id="canvasMerged"></canvas>
+    <canvas id="canvasFinal"></canvas>
+
+        <script src="https://docs.opencv.org/4.5.5/opencv.js"></script>
+        <script src="script.js"></script>
 </body>
 </html>
