@@ -1,3 +1,9 @@
+// ページがロードされたときに実行される関数
+window.onload = () => {
+  // ページがロードされたらファイル選択ボタンの値をリセットする
+  document.getElementById("fileInput").value = null;
+};
+
 // OpenCVの準備ができたら処理を開始する
 cv.onRuntimeInitialized = () => {
   const cannyMinThres = 30.0;
@@ -6,13 +12,28 @@ cv.onRuntimeInitialized = () => {
   // HTMLのcanvas要素を取得
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
+  // 画像ファイルの読み込み処理
+  document.getElementById("fileInput").addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    const reader = new FileReader();
 
-  // 画像を読み込む
-  const img = new Image();
-  img.src = "house3.jpg"; // 画像のパスを指定してください
+    reader.onload = (e) => {
+      document.getElementById("paintModule").style.display ="block";
+      const img = new Image();
+      img.src = e.target.result;
+      // 画像が読み込まれたら処理を続行
+      img.onload = () => {
+        paintWall(img);
+      };
+    };
+    reader.readAsDataURL(file);
+  });
 
-  // 画像が読み込まれたら処理を続行
-  img.onload = () => {
+  /**
+   * 画像変換処理
+   * @param {*} img 
+   */
+  function paintWall(img) {
     const canvasWidth = img.width;
     const canvasHeight = img.height;
     canvas.width = canvasWidth;
@@ -170,7 +191,7 @@ cv.onRuntimeInitialized = () => {
       mergedImage.delete();
       finalImage.delete();
     });
-  };
+  }
 
   function showImage(canvasId, mat) {
     const canvas = document.getElementById(canvasId);
