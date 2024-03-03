@@ -12,8 +12,6 @@ cv.onRuntimeInitialized = () => {
   img.src = "house3.jpg"; // 画像のパスを指定してください
 
   // 画像が読み込まれたら処理を続行
-  // クリックイベントリスナーを追加
-
   img.onload = () => {
     const canvasWidth = img.width;
     const canvasHeight = img.height;
