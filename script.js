@@ -123,7 +123,10 @@ cv.onRuntimeInitialized = () => {
       );
       // 膨張処理
       const dilatedEdges = new cv.Mat();
-      cv.dilate(mergedEdges, dilatedEdges, M);
+      // hsvのエッジもマージする場合はこちら
+      // cv.dilate(mergedEdges, dilatedEdges, M);
+      // グレースケールのエッジのみで塗装
+      cv.dilate(edgesGray, dilatedEdges, M);
       showImage("canvasDilatedEdges", dilatedEdges);
 
       // シードポイントのリサイズ
