@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenCV JavaScript Example</title>
+</head>
+<h1>壁面塗装サンプル(テクスチャー版)</h1>
+<h2>塗装元画像をアップロードしてください</h2>
+<input type="file" id="fileInput">
+<br>
+<h2>テクスチャー画像をアップロードしてください</h2>
+<input type="file" id="fileInputTexture">
+<br>
+
+<input type="button" id="executeButton" value="読み込み">
+<br>
+
+<div id="paintModule" style="display:none;">
+    <h2>画像内をクリックしてください</h2>
+    <canvas id="canvas"></canvas>
+    <h2>実行結果</h2>
+    <canvas id="canvasFinal"></canvas>
+    <br>
+    <br>
+    <h2>テクスチャー</h2>
+    <canvas id="canvasTexture"></canvas>
+    <h2>canvasGray</h2>
+    <canvas id="canvasGray"></canvas>
+    <br>
+    <h2>canvasHSV</h2>
+    <canvas id="canvasHSV"></canvas>
+    <br>
+    <h2>canvasS</h2>
+    <canvas id="canvasS"></canvas>
+    <br>
+    <h2>canvasBlurredGray</h2>
+    <canvas id="canvasBlurredGray"></canvas>
+    <br>
+    <h2>canvasBlurredS</h2>
+    <canvas id="canvasBlurredS"></canvas>
+    <br>
+    <h2>canvasEdgesGray</h2>
+    <canvas id="canvasEdgesGray"></canvas>
+    <br>
+    <h2>canvasEdgesS</h2>
+    <canvas id="canvasEdgesS"></canvas>
+    <br>
+    <h2>canvasMergedEdges</h2>
+    <canvas id="canvasMergedEdges"></canvas>
+    <br>
+    <h2>canvasDilatedEdges</h2>
+    <canvas id="canvasDilatedEdges"></canvas>
+    <br>
+    <h2>canvasFlooded</h2>
+    <canvas id="canvasFlooded"></canvas>
+    <br>
+    <h2>canvasDilatedRgb</h2>
+    <canvas id="canvasDilatedRgb"></canvas>
+    <br>
+    <h2>canvasMerged</h2>
+    <canvas id="canvasMerged"></canvas>
+    <br>
+</div>
+
+<script src="https://docs.opencv.org/4.5.5/opencv.js"></script>
+<script src="scriptTexture.js"></script>
+</body>
+
+</html>
