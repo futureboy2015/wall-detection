@@ -32,7 +32,7 @@ cv.onRuntimeInitialized = () => {
   const img = new Image();
   img.src = "house3.jpg";
   const textureImg = new Image();
-  textureImg.src = "texture-bricks-with-white-spots_1199-73.jpg";
+  textureImg.src = "pngtree-natural-stone-texture-the-perfect-background-for-tile-wall-designs-image_13580036.png";
   // 画像が読み込まれたら処理を続行
   img.onload = () => {
     textureImg.onload = () => {
@@ -305,12 +305,17 @@ cv.onRuntimeInitialized = () => {
         new cv.Size(dilatedEdges.cols + 2, dilatedEdges.rows + 2)
       );
 
-      // Flood-fill
+      // 論理和用にエッジ画像を待避しておく(Flood-fillされるため)
+      const copyDilatedEdges = new cv.Mat();
+      dilatedEdges.copyTo(copyDilatedEdges);
+
+      // Flood-fill(塗りつぶし)
       let floodedImage = rgb.clone();
       const floodFillFlag = 8;
-      const color = new cv.Scalar(0, 0, 200, 155);
+      const color = new cv.Scalar(0, 0, 0);
       const loDiff = new cv.Scalar(20, 20, 20, 20);
       const upDiff = new cv.Scalar(20, 20, 20, 20);
+
       cv.floodFill(
         floodedImage,
         dilatedEdges,
@@ -323,17 +328,30 @@ cv.onRuntimeInitialized = () => {
       );
       showImage("canvasFlooded", floodedImage);
 
-      // この辺から違う
-      const copyDilatedEdges = new cv.Mat();
-      floodedImage.copyTo(floodedImage);
+      // Flood-fill(論理和用)
+      const maskEdge = new cv.Mat(rgb.size(), rgb.type());
+      cv.floodFill(
+        maskEdge,
+        copyDilatedEdges,
+        seedPoint,
+        new cv.Scalar(255, 255, 255),
+        new cv.Rect(),
+        loDiff,
+        upDiff,
+        floodFillFlag
+      );
+      showImage("canvasDilatedRgb", maskEdge);
+
+      // テクスチャー画像取得
       const textureImgMat = new cv.Mat();
       const textureMat = convertTextureImageToMat(textureImg);
-      showImage("canvasDilatedRgb", textureMat);
-      cv.bitwise_and(copyDilatedEdges, textureMat, textureImgMat);
 
+      // 論理積取得
+      cv.bitwise_and(maskEdge, textureMat, textureImgMat);
+
+      // 論理和取得
       const resultImage = new cv.Mat();
       cv.bitwise_or(textureImgMat, floodedImage, resultImage);
-      showImage("canvasDilatedRgb", resultImage);
 
       // HSVのマージ
       const rgbHsvImage = new cv.Mat();
@@ -376,18 +394,30 @@ cv.onRuntimeInitialized = () => {
     cv.imshow(canvas, mat);
   }
 
+  /**
+   * テクスチャー画像取得
+   * @param {*} textureImg 
+   * @returns rgb返還後のテクスチャー(mat型)
+   */
   function convertTextureImageToMat(textureImg) {
-  // 新しいImageDataオブジェクトを作成
-  const imageData = new ImageData(textureImg.width, textureImg.height);
-  // テクスチャ画像のピクセルデータをコピーする
-  const canvas = document.createElement("canvas");
-  canvas.width = textureImg.width;
-  canvas.height = textureImg.height;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(textureImg, 0, 0);
-  imageData.data.set(ctx.getImageData(0, 0, textureImg.width, textureImg.height).data);
-  // OpenCVのcv.matFromImageData関数を使用してImageDataをMatオブジェクトに変換
-  const mat = cv.matFromImageData(imageData);
-  return mat;
-}
+    // テクスチャ画像のピクセルデータをコピーする
+    const canvas = document.createElement("canvas");
+    canvas.width = textureImg.width;
+    canvas.height = textureImg.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(textureImg, 0, 0);
+    // 新しいImageDataオブジェクトを作成
+    const baseCanvas = document.getElementById("canvas");
+    const imageData = new ImageData(baseCanvas.width, baseCanvas.height);
+    imageData.data.set(
+      ctx.getImageData(0, 0, baseCanvas.width, baseCanvas.height).data
+    );
+    // OpenCVのcv.matFromImageData関数を使用してImageDataをMatオブジェクトに変換
+    const mat = cv.matFromImageData(imageData);
+
+    // rgbに型を合わせる(UncoughtErrorになるので)
+    const rgbMat = new cv.Mat();
+    cv.cvtColor(mat, rgbMat, cv.COLOR_RGBA2RGB);
+    return rgbMat;
+  }
 };
