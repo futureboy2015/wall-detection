@@ -9,6 +9,9 @@ cv.onRuntimeInitialized = () => {
   const cannyMinThres = 30.0;
   const ratio = 2.5;
 
+  // クリックされたポイントのリスト
+  const clickedPoints = [];
+
   // HTMLのcanvas要素を取得
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
@@ -18,7 +21,7 @@ cv.onRuntimeInitialized = () => {
     const reader = new FileReader();
 
     reader.onload = (e) => {
-      document.getElementById("paintModule").style.display ="block";
+      document.getElementById("paintModule").style.display = "block";
       const img = new Image();
       img.src = e.target.result;
       // 画像が読み込まれたら処理を続行
@@ -31,7 +34,7 @@ cv.onRuntimeInitialized = () => {
 
   /**
    * 画像変換処理
-   * @param {*} img 
+   * @param {*} img
    */
   function paintWall(img) {
     const canvasWidth = img.width;
@@ -41,12 +44,6 @@ cv.onRuntimeInitialized = () => {
     ctx.drawImage(img, 0, 0);
 
     canvas.addEventListener("click", (event) => {
-      // クリックされた位置を取得
-      const xPoint = event.offsetX;
-      const yPoint = event.offsetY;
-      console.log(xPoint);
-      console.log(yPoint);
-
       // 画像データを取得
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const src = cv.matFromImageData(imageData);
@@ -129,8 +126,14 @@ cv.onRuntimeInitialized = () => {
       cv.dilate(edgesGray, dilatedEdges, M);
       showImage("canvasDilatedEdges", dilatedEdges);
 
-      // シードポイントのリサイズ
+      // クリックされた位置を取得
+      const xPoint = event.offsetX;
+      const yPoint = event.offsetY;
       const seedPoint = new cv.Point(xPoint, yPoint);
+      // クリックされたポイントをリストに追加(複数壁面対応)
+      clickedPoints.push(seedPoint);
+
+      // シードポイントのリサイズ
       cv.resize(
         dilatedEdges,
         dilatedEdges,
@@ -143,16 +146,20 @@ cv.onRuntimeInitialized = () => {
       const color = new cv.Scalar(0, 0, 200, 155);
       const loDiff = new cv.Scalar(20, 20, 20, 20);
       const upDiff = new cv.Scalar(20, 20, 20, 20);
-      cv.floodFill(
-        floodedImage,
-        dilatedEdges,
-        seedPoint,
-        color,
-        new cv.Rect(),
-        loDiff,
-        upDiff,
-        floodFillFlag
-      );
+      // クリックポイント分塗装
+      for (const point of clickedPoints) {
+        cv.floodFill(
+          floodedImage,
+          dilatedEdges,
+          point,
+          color,
+          new cv.Rect(),
+          loDiff,
+          upDiff,
+          floodFillFlag
+        );
+      }
+
       showImage("canvasFlooded", floodedImage);
 
       // 膨張処理(RGB)
