@@ -10,6 +10,9 @@ cv.onRuntimeInitialized = () => {
   const cannyMinThres = 30.0;
   const ratio = 2.5;
 
+  // クリックされたポイントのリスト
+  const clickedPoints = [];
+
   // HTMLのcanvas要素を取得
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
@@ -45,11 +48,9 @@ cv.onRuntimeInitialized = () => {
 
   // ベタ指定用
   // document.getElementById("paintModule").style.display = "block";
-  // const img = new Image();
-  // img.src = "house3.jpg";
-  // const textureImg = new Image();
-  // textureImg.src =
-  //   "pngtree-natural-stone-texture-the-perfect-background-for-tile-wall-designs-image_13580036.png";
+  // houseImage.src = "../textImage/house3.jpg";
+  // textureImage.src =
+  //   "../textImage/pngtree-natural-stone-texture-the-perfect-background-for-tile-wall-designs-image_13580036.png";
 
   // 処理実行
   const executeButton = document.getElementById("executeButton");
@@ -85,12 +86,6 @@ cv.onRuntimeInitialized = () => {
     showImage("canvasTexture", textureMat);
 
     canvas.addEventListener("click", (event) => {
-      // クリックされた位置を取得
-      const xPoint = event.offsetX;
-      const yPoint = event.offsetY;
-      console.log(xPoint);
-      console.log(yPoint);
-
       // 画像データを取得
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const src = cv.matFromImageData(imageData);
@@ -167,11 +162,20 @@ cv.onRuntimeInitialized = () => {
       );
       // 膨張処理
       const dilatedEdges = new cv.Mat();
-      cv.dilate(mergedEdges, dilatedEdges, M);
+      // hsvのエッジもマージする場合はこちら
+      // cv.dilate(mergedEdges, dilatedEdges, M);
+      // グレースケールのエッジのみで塗装
+      cv.dilate(edgesGray, dilatedEdges, M);
       showImage("canvasDilatedEdges", dilatedEdges);
 
-      // シードポイントのリサイズ
+      // クリックされた位置を取得
+      const xPoint = event.offsetX;
+      const yPoint = event.offsetY;
       const seedPoint = new cv.Point(xPoint, yPoint);
+      // クリックされたポイントをリストに追加(複数壁面対応)
+      clickedPoints.push(seedPoint);
+
+      // シードポイントのリサイズ
       cv.resize(
         dilatedEdges,
         dilatedEdges,
@@ -189,30 +193,39 @@ cv.onRuntimeInitialized = () => {
       const loDiff = new cv.Scalar(20, 20, 20, 20);
       const upDiff = new cv.Scalar(20, 20, 20, 20);
 
-      cv.floodFill(
-        floodedImage,
-        dilatedEdges,
-        seedPoint,
-        color,
-        new cv.Rect(),
-        loDiff,
-        upDiff,
-        floodFillFlag
-      );
+      // クリックポイント分回す
+      for (const point of clickedPoints) {
+        cv.floodFill(
+          floodedImage,
+          dilatedEdges,
+          point,
+          color,
+          new cv.Rect(),
+          loDiff,
+          upDiff,
+          floodFillFlag
+        );
+      }
+
       showImage("canvasFlooded", floodedImage);
 
       // Flood-fill(論理和用)
       const maskEdge = new cv.Mat(rgb.size(), rgb.type());
-      cv.floodFill(
-        maskEdge,
-        copyDilatedEdges,
-        seedPoint,
-        new cv.Scalar(255, 255, 255),
-        new cv.Rect(),
-        loDiff,
-        upDiff,
-        floodFillFlag
-      );
+
+      // クリックポイント分回す
+      for (const point of clickedPoints) {
+        cv.floodFill(
+          maskEdge,
+          copyDilatedEdges,
+          point,
+          new cv.Scalar(255, 255, 255),
+          new cv.Rect(),
+          loDiff,
+          upDiff,
+          floodFillFlag
+        );
+      }
+
       showImage("canvasDilatedRgb", maskEdge);
 
       // 論理積取得
