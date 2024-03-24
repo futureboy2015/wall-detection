@@ -189,6 +189,7 @@ cv.onRuntimeInitialized = () => {
       showImage("canvasDilatedRgb", dilatedRgb);
       // メモリ解放
       floodedImage.delete();
+      M.delete();
 
       // HSVのマージ
       const rgbHsvImage = new cv.Mat();
