@@ -159,49 +159,123 @@ cv.onRuntimeInitialized = () => {
       mergedEdges.delete();
     });
 
-    const canvas2 = document.getElementById("canvasDilatedEdges");
-    const canvas3 = document.getElementById("canvasFinal");
+    // 塗装済み画像キャンバス(再塗装用)
+    const canvasMerged = document.getElementById("canvasMerged");
+    // 最終結果キャンバス(マウス検知用)
+    const canvasFinal = document.getElementById("canvasFinal");
+
+    // 消しゴム用マスク画像を作成
+    const maskCanvas = document.createElement("canvas");
+    maskCanvas.width = canvas.width;
+    maskCanvas.height = canvas.height;
+    const maskCtx = maskCanvas.getContext("2d");
+
     // マウスが押されたときのイベント
-    canvas3.addEventListener("mousedown", (event) => {
+    canvasFinal.addEventListener("mousedown", (event) => {
       isPainting = true;
       prevX = event.offsetX;
       prevY = event.offsetY;
     });
 
     // マウスが離されたときのイベント
-    canvas3.addEventListener("mouseup", () => {
+    canvasFinal.addEventListener("mouseup", () => {
       isPainting = false;
     });
 
     // マウスが動いたときのイベント
-    canvas3.addEventListener("mousemove", (event) => {
+    canvasFinal.addEventListener("mousemove", (event) => {
       if (isPainting) {
-        const ctx2 = canvas2.getContext("2d");
-
-        const x = event.offsetX;
-        const y = event.offsetY;
-        // 直前のポイントから現在のポイントまでを線で結ぶ
-        ctx2.beginPath();
-        ctx2.moveTo(prevX, prevY);
-        ctx2.lineTo(x, y);
-        ctx2.strokeStyle = "white"; // 新しい塗りつぶしの色を赤に設定（任意の色に変更可能）
-        ctx2.lineWidth = 5; // 塗装の太さを設定（任意の太さに変更可能）
-        ctx2.stroke();
-        // 現在のポイントを直前のポイントとして更新
-        prevX = x;
-        prevY = y;
-
-        const imageData = ctx2.getImageData(0, 0, canvas.width, canvas.height);
-        const src = cv.matFromImageData(imageData);
-        const rgbPainted = new cv.Mat();
-
-        // COLOR_RGBA2GRAYにしないとflood-fillで型が合わなくて落ちる
-        cv.cvtColor(src, rgbPainted, cv.COLOR_RGBA2GRAY);
-
-        src.delete();
-
-        floodedImage(rgbPainted);
-        rgbPainted.delete();
+        if (document.getElementById("modeChange").textContent === '消しゴムモード') {
+          const ctx2 = canvasMerged.getContext("2d");
+          const x = event.offsetX;
+          const y = event.offsetY;
+  
+          // マスク画像を生成
+          // 直前のポイントから現在のポイントまでを線で結ぶ
+          maskCtx.beginPath();
+          maskCtx.moveTo(prevX, prevY);
+          maskCtx.lineTo(x, y);
+          maskCtx.strokeStyle = "white"; // マスク用に白
+          maskCtx.lineWidth = 5; // 塗装の太さを設定（任意の太さに変更可能）
+          maskCtx.stroke();
+  
+          const maskImageData = maskCtx.getImageData(
+            0,
+            0,
+            maskCanvas.width,
+            maskCanvas.height
+          );
+          const maskSrc = cv.matFromImageData(maskImageData);
+          const mask = new cv.Mat();
+          cv.cvtColor(maskSrc, mask, cv.COLOR_RGBA2RGB);
+  
+          // 現在のポイントを直前のポイントとして更新
+          prevX = x;
+          prevY = y;
+  
+          const imageData = ctx2.getImageData(0, 0, canvas.width, canvas.height);
+          const src = cv.matFromImageData(imageData);
+          const rgbPainted = new cv.Mat();
+          // 型合わせ
+          cv.cvtColor(src, rgbPainted, cv.COLOR_RGBA2RGB);
+  
+          // 論理積取得(マスク画像を元画像と結合)
+          const maskAndImage = new cv.Mat();
+          cv.bitwise_and(mask, rgb, maskAndImage);
+  
+          mask.delete();
+  
+          // 論理和取得(マスク画像と塗装済み画像を結合)
+          const resultImage = new cv.Mat();
+          cv.bitwise_or(maskAndImage, rgbPainted, resultImage);
+          maskAndImage.delete();
+          showImage("canvasMerged", resultImage);
+  
+          // 結合した画像を再度元画像と結合
+          const finalImage = new cv.Mat();
+          // 数字は結合率(右のを重めに)
+          cv.addWeighted(resultImage, 0.4, rgb, 0.6, 0, finalImage);
+          // メモリ解放
+          showImage("canvasFinal", finalImage);
+          // メモリ解放
+          resultImage.delete();
+          finalImage.delete();
+          rgbPainted.delete();
+        }
+        else if (document.getElementById("modeChange").textContent === '追加塗装モード') {
+          const ctx2 = canvasMerged.getContext("2d");
+          const x = event.offsetX;
+          const y = event.offsetY;
+  
+          // マスク画像を生成
+          // 直前のポイントから現在のポイントまでを線で結ぶ
+          ctx2.beginPath();
+          ctx2.moveTo(prevX, prevY);
+          ctx2.lineTo(x, y);
+          ctx2.strokeStyle = "blue"; // 任意の色(色はメイン塗装処理と合わせる)
+          ctx2.lineWidth = 5; // 塗装の太さを設定（任意の太さに変更可能）
+          ctx2.stroke();
+  
+          // 現在のポイントを直前のポイントとして更新
+          prevX = x;
+          prevY = y;
+  
+          const imageData = ctx2.getImageData(0, 0, canvas.width, canvas.height);
+          const src = cv.matFromImageData(imageData);
+          const rgbPainted = new cv.Mat();
+          // 型合わせ
+          cv.cvtColor(src, rgbPainted, cv.COLOR_RGBA2RGB);
+  
+          // 結合した画像を再度元画像と結合
+          const finalImage = new cv.Mat();
+          // 数字は結合率(右のを重めに)
+          cv.addWeighted(rgbPainted, 0.4, rgb, 0.6, 0, finalImage);
+          // メモリ解放
+          showImage("canvasFinal", finalImage);
+          // メモリ解放
+          finalImage.delete();
+          rgbPainted.delete();
+        }
       }
     });
 
@@ -239,13 +313,13 @@ cv.onRuntimeInitialized = () => {
         );
       }
 
-      //showImage("canvasFlooded", floodedImage);
+      showImage("canvasFlooded", floodedImage);
 
       // 膨張処理(RGB)
       // 最悪無くてもいいか？
       const dilatedRgb = new cv.Mat();
       cv.dilate(floodedImage, dilatedRgb, M, new cv.Point(0.0, 0.0), 0.5);
-      //showImage("canvasDilatedRgb", dilatedRgb);
+      showImage("canvasDilatedRgb", dilatedRgb);
       // メモリ解放
       floodedImage.delete();
 
@@ -264,7 +338,7 @@ cv.onRuntimeInitialized = () => {
       // メモリ解放
       sChanelRgbHsvImage.delete();
       cv.cvtColor(mergedImage, mergedImage, cv.COLOR_HSV2RGB);
-      //showImage("canvasMerged", mergedImage);
+      showImage("canvasMerged", mergedImage);
 
       // 元の画像とのマージ
       const finalImage = new cv.Mat();
@@ -276,6 +350,16 @@ cv.onRuntimeInitialized = () => {
       // メモリ解放
       finalImage.delete();
     }
+
+    /**
+     * 再塗装モード切替
+     */
+    document.getElementById("paint").addEventListener("click", (event) => {
+      document.getElementById("modeChange").textContent = "追加塗装モード";
+    });
+    document.getElementById("delete").addEventListener("click", (event) => {
+      document.getElementById("modeChange").textContent = "消しゴムモード";
+    });
   }
 
   function showImage(canvasId, mat) {
