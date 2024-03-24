@@ -142,7 +142,7 @@ cv.onRuntimeInitialized = () => {
       const seedPoint = new cv.Point(xPoint, yPoint);
       // クリックされたポイントをリストに追加(複数壁面対応)
       clickedPoints.push(seedPoint);
-      
+
       // 一旦メモリ解放
       gray.delete();
       hsv.delete();
@@ -219,6 +219,10 @@ cv.onRuntimeInitialized = () => {
       finalImage.delete();
     });
 
+    /**
+     * 再塗装処理
+     */
+    
     // 塗装済み画像キャンバス(再塗装用)
     const canvasMerged = document.getElementById("canvasMerged");
     // 最終結果キャンバス(マウス検知用)
@@ -245,12 +249,15 @@ cv.onRuntimeInitialized = () => {
     // マウスが動いたときのイベント
     canvasFinal.addEventListener("mousemove", (event) => {
       if (isPainting) {
-        if (document.getElementById("modeChange").textContent === '消しゴムモード') {
+        if (
+          document.getElementById("modeChange").textContent === "消しゴムモード"
+        ) {
           const ctx2 = canvasMerged.getContext("2d");
           const x = event.offsetX;
           const y = event.offsetY;
-  
+
           // マスク画像を生成
+          // TODO: モード切替後にマスクを再生成しないと残ったままになる
           // 直前のポイントから現在のポイントまでを線で結ぶ
           maskCtx.beginPath();
           maskCtx.moveTo(prevX, prevY);
@@ -258,7 +265,7 @@ cv.onRuntimeInitialized = () => {
           maskCtx.strokeStyle = "white"; // マスク用に白
           maskCtx.lineWidth = 5; // 塗装の太さを設定（任意の太さに変更可能）
           maskCtx.stroke();
-  
+
           const maskImageData = maskCtx.getImageData(
             0,
             0,
@@ -268,29 +275,34 @@ cv.onRuntimeInitialized = () => {
           const maskSrc = cv.matFromImageData(maskImageData);
           const mask = new cv.Mat();
           cv.cvtColor(maskSrc, mask, cv.COLOR_RGBA2RGB);
-  
+
           // 現在のポイントを直前のポイントとして更新
           prevX = x;
           prevY = y;
-  
-          const imageData = ctx2.getImageData(0, 0, canvas.width, canvas.height);
+
+          const imageData = ctx2.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          );
           const src = cv.matFromImageData(imageData);
           const rgbPainted = new cv.Mat();
           // 型合わせ
           cv.cvtColor(src, rgbPainted, cv.COLOR_RGBA2RGB);
-  
+
           // 論理積取得(マスク画像を元画像と結合)
           const maskAndImage = new cv.Mat();
           cv.bitwise_and(mask, rgb, maskAndImage);
-  
+
           mask.delete();
-  
+
           // 論理和取得(マスク画像と塗装済み画像を結合)
           const resultImage = new cv.Mat();
           cv.bitwise_or(maskAndImage, rgbPainted, resultImage);
           maskAndImage.delete();
           showImage("canvasMerged", resultImage);
-  
+
           // 結合した画像を再度元画像と結合
           const finalImage = new cv.Mat();
           // 数字は結合率(右のを重めに)
@@ -301,12 +313,13 @@ cv.onRuntimeInitialized = () => {
           resultImage.delete();
           finalImage.delete();
           rgbPainted.delete();
-        }
-        else if (document.getElementById("modeChange").textContent === '追加塗装モード') {
+        } else if (
+          document.getElementById("modeChange").textContent === "追加塗装モード"
+        ) {
           const ctx2 = canvasMerged.getContext("2d");
           const x = event.offsetX;
           const y = event.offsetY;
-  
+
           // マスク画像を生成
           // 直前のポイントから現在のポイントまでを線で結ぶ
           ctx2.beginPath();
@@ -315,17 +328,22 @@ cv.onRuntimeInitialized = () => {
           ctx2.strokeStyle = "blue"; // 任意の色(色はメイン塗装処理と合わせる)
           ctx2.lineWidth = 5; // 塗装の太さを設定（任意の太さに変更可能）
           ctx2.stroke();
-  
+
           // 現在のポイントを直前のポイントとして更新
           prevX = x;
           prevY = y;
-  
-          const imageData = ctx2.getImageData(0, 0, canvas.width, canvas.height);
+
+          const imageData = ctx2.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          );
           const src = cv.matFromImageData(imageData);
           const rgbPainted = new cv.Mat();
           // 型合わせ
           cv.cvtColor(src, rgbPainted, cv.COLOR_RGBA2RGB);
-  
+
           // 結合した画像を再度元画像と結合
           const finalImage = new cv.Mat();
           // 数字は結合率(右のを重めに)
@@ -343,10 +361,6 @@ cv.onRuntimeInitialized = () => {
     canvas.addEventListener("mouseleave", () => {
       isPainting = false;
     });
-
-    function floodedImage(dilatedEdges) {
-      
-    }
 
     /**
      * 再塗装モード切替
