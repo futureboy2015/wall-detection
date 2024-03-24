@@ -222,17 +222,17 @@ cv.onRuntimeInitialized = () => {
     /**
      * 再塗装処理
      */
-    
+
     // 塗装済み画像キャンバス(再塗装用)
     const canvasMerged = document.getElementById("canvasMerged");
     // 最終結果キャンバス(マウス検知用)
     const canvasFinal = document.getElementById("canvasFinal");
 
     // 消しゴム用マスク画像を作成
-    const maskCanvas = document.createElement("canvas");
+    let maskCanvas = document.createElement("canvas");
     maskCanvas.width = canvas.width;
     maskCanvas.height = canvas.height;
-    const maskCtx = maskCanvas.getContext("2d");
+    let maskCtx = maskCanvas.getContext("2d");
 
     // マウスが押されたときのイベント
     canvasFinal.addEventListener("mousedown", (event) => {
@@ -257,7 +257,6 @@ cv.onRuntimeInitialized = () => {
           const y = event.offsetY;
 
           // マスク画像を生成
-          // TODO: モード切替後にマスクを再生成しないと残ったままになる
           // 直前のポイントから現在のポイントまでを線で結ぶ
           maskCtx.beginPath();
           maskCtx.moveTo(prevX, prevY);
@@ -290,17 +289,32 @@ cv.onRuntimeInitialized = () => {
           const rgbPainted = new cv.Mat();
           // 型合わせ
           cv.cvtColor(src, rgbPainted, cv.COLOR_RGBA2RGB);
+          // メモリ解放
+          src.delete();
 
-          // 論理積取得(マスク画像を元画像と結合)
+          // 論理積取得(マスク画像を元画像と結合し、マスクされた元画像を得る)
           const maskAndImage = new cv.Mat();
           cv.bitwise_and(mask, rgb, maskAndImage);
 
+          // マスク画像を反転させる(白と黒を逆に)
+          const maskInv = new cv.Mat();
+          cv.bitwise_not(mask, maskInv);
           mask.delete();
 
-          // 論理和取得(マスク画像と塗装済み画像を結合)
+          // マスク画像とrgbPaintedを合成
+          // 論理積取得(マスク画像と塗装済み画像を結合し、塗装済みに対してマスクした画像を得る)
+          const paintedMaskImage = new cv.Mat();
+          cv.bitwise_and(maskInv, rgbPainted, paintedMaskImage);
+          maskInv.delete();
+
+          // それぞれのマスク済み画像を結合
+          // 塗装済みに対してマスクした画像にマスク済み元画像を結合する
           const resultImage = new cv.Mat();
-          cv.bitwise_or(maskAndImage, rgbPainted, resultImage);
+          cv.add(paintedMaskImage, maskAndImage, resultImage);
+          paintedMaskImage.delete();
+
           maskAndImage.delete();
+          // canvasMerged(塗装後のcanvasに描画、追加塗装モードで参照するため)
           showImage("canvasMerged", resultImage);
 
           // 結合した画像を再度元画像と結合
@@ -343,6 +357,8 @@ cv.onRuntimeInitialized = () => {
           const rgbPainted = new cv.Mat();
           // 型合わせ
           cv.cvtColor(src, rgbPainted, cv.COLOR_RGBA2RGB);
+          // メモリ解放
+          src.delete();
 
           // 結合した画像を再度元画像と結合
           const finalImage = new cv.Mat();
@@ -353,6 +369,13 @@ cv.onRuntimeInitialized = () => {
           // メモリ解放
           finalImage.delete();
           rgbPainted.delete();
+
+          
+          // 消しゴム処理向けにマスクを初期化
+          maskCanvas = document.createElement("canvas");
+          maskCanvas.width = canvas.width;
+          maskCanvas.height = canvas.height;
+          maskCtx = maskCanvas.getContext("2d");
         }
       }
     });
