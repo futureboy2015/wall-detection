@@ -229,10 +229,10 @@ cv.onRuntimeInitialized = () => {
     const canvasFinal = document.getElementById("canvasFinal");
 
     // 消しゴム用マスク画像を作成
-    const maskCanvas = document.createElement("canvas");
+    let maskCanvas = document.createElement("canvas");
     maskCanvas.width = canvas.width;
     maskCanvas.height = canvas.height;
-    const maskCtx = maskCanvas.getContext("2d");
+    let maskCtx = maskCanvas.getContext("2d");
 
     // マウスが押されたときのイベント
     canvasFinal.addEventListener("mousedown", (event) => {
@@ -257,7 +257,6 @@ cv.onRuntimeInitialized = () => {
           const y = event.offsetY;
 
           // マスク画像を生成
-          // TODO: モード切替後にマスクを再生成しないと残ったままになる
           // 直前のポイントから現在のポイントまでを線で結ぶ
           maskCtx.beginPath();
           maskCtx.moveTo(prevX, prevY);
@@ -313,10 +312,10 @@ cv.onRuntimeInitialized = () => {
           const resultImage = new cv.Mat();
           cv.add(paintedMaskImage, maskAndImage, resultImage);
           paintedMaskImage.delete();
-          showImage("canvasTest", resultImage);
 
           maskAndImage.delete();
-          showImage("canvasMerged", rgbPainted);
+          // canvasMerged(塗装後のcanvasに描画、追加塗装モードで参照するため)
+          showImage("canvasMerged", resultImage);
 
           // 結合した画像を再度元画像と結合
           const finalImage = new cv.Mat();
@@ -370,6 +369,13 @@ cv.onRuntimeInitialized = () => {
           // メモリ解放
           finalImage.delete();
           rgbPainted.delete();
+
+          
+          // 消しゴム処理向けにマスクを初期化
+          maskCanvas = document.createElement("canvas");
+          maskCanvas.width = canvas.width;
+          maskCanvas.height = canvas.height;
+          maskCtx = maskCanvas.getContext("2d");
         }
       }
     });
