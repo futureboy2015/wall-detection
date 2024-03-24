@@ -68,28 +68,28 @@ cv.onRuntimeInitialized = () => {
       // グレースケール変換
       const gray = new cv.Mat();
       cv.cvtColor(rgb, gray, cv.COLOR_RGBA2GRAY);
-      showImage("canvasGray", gray);
+      //showImage("canvasGray", gray);
 
       // HSV変換
       const hsv = new cv.Mat();
       cv.cvtColor(rgb, hsv, cv.COLOR_RGB2HSV);
-      showImage("canvasHSV", hsv);
+      //showImage("canvasHSV", hsv);
 
       // Sチャンネル取得
       const sChannel = new cv.MatVector();
       cv.split(hsv, sChannel);
       const sCanvas = document.createElement("canvas");
-      showImage("canvasS", sChannel.get(1));
+      //showImage("canvasS", sChannel.get(1));
       document.body.appendChild(sCanvas);
 
       // ぼかし処理(グレースケール)
       const blurredGray = new cv.Mat();
       cv.medianBlur(gray, blurredGray, 3);
-      showImage("canvasBlurredGray", blurredGray);
+      //showImage("canvasBlurredGray", blurredGray);
 
       const blurredSChannel = new cv.Mat();
       cv.medianBlur(sChannel.get(1), blurredSChannel, 3);
-      showImage("canvasBlurredS", blurredSChannel);
+      //showImage("canvasBlurredS", blurredSChannel);
 
       // Cannyエッジ検出(グレースケール)
       const edgesGray = new cv.Mat();
@@ -101,7 +101,7 @@ cv.onRuntimeInitialized = () => {
         3,
         false
       );
-      showImage("canvasEdgesGray", edgesGray);
+      //showImage("canvasEdgesGray", edgesGray);
 
       // Cannyエッジ検出(Sチャネル)
       const edgesS = new cv.Mat();
@@ -113,12 +113,12 @@ cv.onRuntimeInitialized = () => {
         3,
         false
       );
-      showImage("canvasEdgesS", edgesS);
+      //showImage("canvasEdgesS", edgesS);
 
       // エッジ画像のマージ
       const mergedEdges = new cv.Mat();
       cv.addWeighted(edgesS, 0.5, edgesGray, 0.5, 0, mergedEdges);
-      showImage("canvasMergedEdges", mergedEdges);
+      // showImage("canvasMergedEdges", mergedEdges);
 
       // マスク作成
       const mask = new cv.Mat();
@@ -149,23 +149,32 @@ cv.onRuntimeInitialized = () => {
       clickedPoints.push(seedPoint);
 
       floodedImage(dilatedEdges);
+
+      gray.delete();
+      hsv.delete();
+      sChannel.delete();
+      blurredGray.delete();
+      edgesGray.delete();
+      edgesS.delete();
+      mergedEdges.delete();
     });
 
     const canvas2 = document.getElementById("canvasDilatedEdges");
+    const canvas3 = document.getElementById("canvasFinal");
     // マウスが押されたときのイベント
-    canvas2.addEventListener("mousedown", (event) => {
+    canvas3.addEventListener("mousedown", (event) => {
       isPainting = true;
       prevX = event.offsetX;
       prevY = event.offsetY;
     });
 
     // マウスが離されたときのイベント
-    canvas2.addEventListener("mouseup", () => {
+    canvas3.addEventListener("mouseup", () => {
       isPainting = false;
     });
 
     // マウスが動いたときのイベント
-    canvas2.addEventListener("mousemove", (event) => {
+    canvas3.addEventListener("mousemove", (event) => {
       if (isPainting) {
         const ctx2 = canvas2.getContext("2d");
 
@@ -175,7 +184,7 @@ cv.onRuntimeInitialized = () => {
         ctx2.beginPath();
         ctx2.moveTo(prevX, prevY);
         ctx2.lineTo(x, y);
-        ctx2.strokeStyle = "black"; // 新しい塗りつぶしの色を赤に設定（任意の色に変更可能）
+        ctx2.strokeStyle = "white"; // 新しい塗りつぶしの色を赤に設定（任意の色に変更可能）
         ctx2.lineWidth = 5; // 塗装の太さを設定（任意の太さに変更可能）
         ctx2.stroke();
         // 現在のポイントを直前のポイントとして更新
@@ -188,6 +197,8 @@ cv.onRuntimeInitialized = () => {
 
         // COLOR_RGBA2GRAYにしないとflood-fillで型が合わなくて落ちる
         cv.cvtColor(src, rgbPainted, cv.COLOR_RGBA2GRAY);
+
+        src.delete();
 
         floodedImage(rgbPainted);
         rgbPainted.delete();
@@ -209,7 +220,7 @@ cv.onRuntimeInitialized = () => {
 
       // Flood-fill
       let floodedImage = rgb.clone();
-      showImage("canvasFlooded", floodedImage);
+      //showImage("canvasFlooded", floodedImage);
       const floodFillFlag = 8;
       const color = new cv.Scalar(0, 0, 200, 155);
       const loDiff = new cv.Scalar(20, 20, 20, 20);
@@ -228,13 +239,15 @@ cv.onRuntimeInitialized = () => {
         );
       }
 
-      showImage("canvasFlooded", floodedImage);
+      //showImage("canvasFlooded", floodedImage);
 
       // 膨張処理(RGB)
       // 最悪無くてもいいか？
       const dilatedRgb = new cv.Mat();
       cv.dilate(floodedImage, dilatedRgb, M, new cv.Point(0.0, 0.0), 0.5);
-      showImage("canvasDilatedRgb", dilatedRgb);
+      //showImage("canvasDilatedRgb", dilatedRgb);
+      // メモリ解放
+      floodedImage.delete();
 
       // HSVのマージ
       const rgbHsvImage = new cv.Mat();
@@ -243,37 +256,30 @@ cv.onRuntimeInitialized = () => {
       // Vチャンネルのマージ
       const sChanelRgbHsvImage = new cv.MatVector();
       cv.split(rgbHsvImage, sChanelRgbHsvImage);
+      // メモリ解放
+      rgbHsvImage.delete();
 
       const mergedImage = new cv.Mat();
       cv.merge(sChanelRgbHsvImage, mergedImage);
+      // メモリ解放
+      sChanelRgbHsvImage.delete();
       cv.cvtColor(mergedImage, mergedImage, cv.COLOR_HSV2RGB);
-      showImage("canvasMerged", mergedImage);
+      //showImage("canvasMerged", mergedImage);
 
       // 元の画像とのマージ
       const finalImage = new cv.Mat();
       // 数字は結合率(右のを重めに)
       cv.addWeighted(mergedImage, 0.4, rgb, 0.6, 0, finalImage);
-      showImage("canvasFinal", finalImage);
-
       // メモリ解放
-      // gray.delete();
-      // hsv.delete();
-      // sChannel.delete();
-      // blurredGray.delete();
-      // edgesGray.delete();
-      // edgesS.delete();
-      // mergedEdges.delete();
-      // M.delete();
-      // dilatedEdges.delete();
-      // floodedImage.delete();
-      // mergedImage.delete();
-      // finalImage.delete();
+      mergedImage.delete();
+      showImage("canvasFinal", finalImage);
+      // メモリ解放
+      finalImage.delete();
     }
   }
 
   function showImage(canvasId, mat) {
     const canvas = document.getElementById(canvasId);
-    const ctx = canvas.getContext("2d");
     cv.imshow(canvas, mat);
   }
 };
