@@ -48,12 +48,7 @@ cv.onRuntimeInitialized = () => {
     let prevX = 0;
     let prevY = 0;
 
-    // 関数移行のためグローバルに変更したもの
-    // クリック座標
-    let xPoint;
-    let yPoint;
-    let M;
-    // 元画像rgb
+    // 元画像rgb(グローバル再塗装モードで利用するためグローバル)
     let rgb;
 
     canvas.addEventListener("click", (event) => {
@@ -125,7 +120,7 @@ cv.onRuntimeInitialized = () => {
       const maskWidth = Math.floor(edgesGray.height / 8.0);
       const maskHeight = Math.floor(edgesGray.width / 8.0);
       mask.setTo(new cv.Scalar(0.0));
-      M = new cv.Mat(
+      const M = new cv.Mat(
         Math.floor(maskWidth / 8.0),
         Math.floor(maskHeight / 8.0),
         cv.CV_8UC1,
@@ -140,16 +135,15 @@ cv.onRuntimeInitialized = () => {
       showImage("canvasDilatedEdges", dilatedEdges);
 
       // クリックされた位置をグローバルに保存
-      xPoint = event.offsetX;
-      yPoint = event.offsetY;
+      const xPoint = event.offsetX;
+      const yPoint = event.offsetY;
 
       // クリックされた位置を取得
       const seedPoint = new cv.Point(xPoint, yPoint);
       // クリックされたポイントをリストに追加(複数壁面対応)
       clickedPoints.push(seedPoint);
-
-      floodedImage(dilatedEdges);
-
+      
+      // 一旦メモリ解放
       gray.delete();
       hsv.delete();
       sChannel.delete();
@@ -157,6 +151,71 @@ cv.onRuntimeInitialized = () => {
       edgesGray.delete();
       edgesS.delete();
       mergedEdges.delete();
+
+      // シードポイントのリサイズ
+      cv.resize(
+        dilatedEdges,
+        dilatedEdges,
+        new cv.Size(dilatedEdges.cols + 2, dilatedEdges.rows + 2)
+      );
+
+      // Flood-fill
+      const floodedImage = rgb.clone();
+      showImage("canvasFlooded", floodedImage);
+      const floodFillFlag = 8;
+      const color = new cv.Scalar(0, 0, 200, 155);
+      const loDiff = new cv.Scalar(20, 20, 20, 20);
+      const upDiff = new cv.Scalar(20, 20, 20, 20);
+      // クリックポイント分塗装
+      for (const point of clickedPoints) {
+        cv.floodFill(
+          floodedImage,
+          dilatedEdges,
+          point,
+          color,
+          new cv.Rect(),
+          loDiff,
+          upDiff,
+          floodFillFlag
+        );
+      }
+
+      showImage("canvasFlooded", floodedImage);
+
+      // 膨張処理(RGB)
+      // 最悪無くてもいいか？
+      const dilatedRgb = new cv.Mat();
+      cv.dilate(floodedImage, dilatedRgb, M, new cv.Point(0.0, 0.0), 0.5);
+      showImage("canvasDilatedRgb", dilatedRgb);
+      // メモリ解放
+      floodedImage.delete();
+
+      // HSVのマージ
+      const rgbHsvImage = new cv.Mat();
+      cv.cvtColor(dilatedRgb, rgbHsvImage, cv.COLOR_RGB2HSV);
+
+      // Vチャンネルのマージ
+      const sChanelRgbHsvImage = new cv.MatVector();
+      cv.split(rgbHsvImage, sChanelRgbHsvImage);
+      // メモリ解放
+      rgbHsvImage.delete();
+
+      const mergedImage = new cv.Mat();
+      cv.merge(sChanelRgbHsvImage, mergedImage);
+      // メモリ解放
+      sChanelRgbHsvImage.delete();
+      cv.cvtColor(mergedImage, mergedImage, cv.COLOR_HSV2RGB);
+      showImage("canvasMerged", mergedImage);
+
+      // 元の画像とのマージ
+      const finalImage = new cv.Mat();
+      // 数字は結合率(右のを重めに)
+      cv.addWeighted(mergedImage, 0.4, rgb, 0.6, 0, finalImage);
+      // メモリ解放
+      mergedImage.delete();
+      showImage("canvasFinal", finalImage);
+      // メモリ解放
+      finalImage.delete();
     });
 
     // 塗装済み画像キャンバス(再塗装用)
@@ -285,70 +344,7 @@ cv.onRuntimeInitialized = () => {
     });
 
     function floodedImage(dilatedEdges) {
-      // シードポイントのリサイズ
-      cv.resize(
-        dilatedEdges,
-        dilatedEdges,
-        new cv.Size(dilatedEdges.cols + 2, dilatedEdges.rows + 2)
-      );
-
-      // Flood-fill
-      let floodedImage = rgb.clone();
-      //showImage("canvasFlooded", floodedImage);
-      const floodFillFlag = 8;
-      const color = new cv.Scalar(0, 0, 200, 155);
-      const loDiff = new cv.Scalar(20, 20, 20, 20);
-      const upDiff = new cv.Scalar(20, 20, 20, 20);
-      // クリックポイント分塗装
-      for (const point of clickedPoints) {
-        cv.floodFill(
-          floodedImage,
-          dilatedEdges,
-          point,
-          color,
-          new cv.Rect(),
-          loDiff,
-          upDiff,
-          floodFillFlag
-        );
-      }
-
-      showImage("canvasFlooded", floodedImage);
-
-      // 膨張処理(RGB)
-      // 最悪無くてもいいか？
-      const dilatedRgb = new cv.Mat();
-      cv.dilate(floodedImage, dilatedRgb, M, new cv.Point(0.0, 0.0), 0.5);
-      showImage("canvasDilatedRgb", dilatedRgb);
-      // メモリ解放
-      floodedImage.delete();
-
-      // HSVのマージ
-      const rgbHsvImage = new cv.Mat();
-      cv.cvtColor(dilatedRgb, rgbHsvImage, cv.COLOR_RGB2HSV);
-
-      // Vチャンネルのマージ
-      const sChanelRgbHsvImage = new cv.MatVector();
-      cv.split(rgbHsvImage, sChanelRgbHsvImage);
-      // メモリ解放
-      rgbHsvImage.delete();
-
-      const mergedImage = new cv.Mat();
-      cv.merge(sChanelRgbHsvImage, mergedImage);
-      // メモリ解放
-      sChanelRgbHsvImage.delete();
-      cv.cvtColor(mergedImage, mergedImage, cv.COLOR_HSV2RGB);
-      showImage("canvasMerged", mergedImage);
-
-      // 元の画像とのマージ
-      const finalImage = new cv.Mat();
-      // 数字は結合率(右のを重めに)
-      cv.addWeighted(mergedImage, 0.4, rgb, 0.6, 0, finalImage);
-      // メモリ解放
-      mergedImage.delete();
-      showImage("canvasFinal", finalImage);
-      // メモリ解放
-      finalImage.delete();
+      
     }
 
     /**
